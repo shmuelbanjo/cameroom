@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>K4MERA // Analog Script</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script src="/js/tw-config.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Courier+Prime:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="bg-surface font-body-md text-on-surface min-h-screen">
+
+  <div class="fixed inset-0 graph-paper pointer-events-none z-0"></div>
+  <div class="fixed inset-0 crinkle-overlay z-50"></div>
+
+  <main class="relative z-10 max-w-md mx-auto px-margin-mobile py-stack-lg min-h-screen flex flex-col">
+
+    <!-- Letterhead -->
+    <header class="border-b-2 border-primary pb-stack-md mb-stack-md flex justify-between items-end">
+      <div>
+        <p class="font-label-sm text-label-sm text-primary uppercase opacity-60">FIELD KIT // VOL. I</p>
+        <h1 class="font-headline-lg-mobile text-[40px] uppercase tracking-tighter text-primary leading-none mt-1">K4MERA</h1>
+      </div>
+      <span class="font-stamp-accent text-stamp-accent bg-primary text-on-primary px-2 py-0.5 -rotate-12 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">NEW</span>
+    </header>
+
+    <!-- Polaroid hero -->
+    <div class="relative bg-surface-container-lowest border-2 border-primary p-3 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] -rotate-1 mb-stack-md">
+      <div class="bg-primary aspect-square border-2 border-primary flex flex-col items-center justify-center text-on-primary p-6 relative overflow-hidden">
+        <div class="absolute inset-0 viewfinder-crosshair opacity-20"></div>
+        <p class="font-label-sm text-label-sm uppercase tracking-widest opacity-60">FRAME 01 / 04</p>
+        <p class="font-headline-lg text-[44px] uppercase tracking-tighter leading-none mt-2 text-center">A WIGGLE,<br>CROWD-<br>SOURCED.</p>
+        <p class="font-label-sm text-label-sm uppercase tracking-widest opacity-60 mt-4">SHUTTER // SYNC // STITCH</p>
+      </div>
+      <div class="pt-3 flex justify-between items-baseline">
+        <p class="font-label-sm text-label-sm uppercase text-primary">FRIENDS BECOME LENSES.</p>
+        <p class="font-label-sm text-label-sm uppercase text-on-surface-variant">N=2..K</p>
+      </div>
+      <!-- Tape -->
+      <div class="absolute -top-2 -left-2 w-12 h-5 bg-secondary-container border border-primary opacity-70 rotate-12"></div>
+      <div class="absolute -bottom-2 -right-2 w-10 h-5 bg-secondary-container border border-primary opacity-70 -rotate-6"></div>
+    </div>
+
+    <!-- Actions -->
+    <div class="space-y-stack-sm mt-stack-sm">
+      <a href="/host" class="block bg-primary text-on-primary border-2 border-primary py-4 px-5 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all flex justify-between items-center">
+        <div>
+          <p class="font-label-sm text-label-sm uppercase opacity-60">ACTION_01</p>
+          <p class="font-headline-md text-headline-md uppercase tracking-tight">HOST A ROOM</p>
+        </div>
+        <span class="material-symbols-outlined text-2xl">arrow_forward</span>
+      </a>
+
+      <a href="/join" class="block bg-surface-container-lowest text-primary border-2 border-primary py-4 px-5 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all flex justify-between items-center">
+        <div>
+          <p class="font-label-sm text-label-sm uppercase opacity-60">ACTION_02</p>
+          <p class="font-headline-md text-headline-md uppercase tracking-tight">JOIN WITH CODE</p>
+        </div>
+        <span class="material-symbols-outlined text-2xl">qr_code_scanner</span>
+      </a>
+    </div>
+
+    <!-- Footer note -->
+    <footer class="mt-auto pt-stack-lg">
+      <div class="border-t-2 border-primary pt-stack-sm flex justify-between items-baseline">
+        <p class="font-label-sm text-label-sm uppercase text-primary opacity-70">PROTO // 0.1.0</p>
+        <p class="font-label-sm text-label-sm uppercase text-primary opacity-70">CAMERA REQUIRES HTTPS</p>
+      </div>
+    </footer>
+
+  </main>
+</body>
+</html>

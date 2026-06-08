@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>K4MERA // Joiner</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script src="/js/tw-config.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Courier+Prime:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="bg-surface font-body-md text-on-surface overflow-hidden">
+
+  <div class="fixed inset-0 graph-paper pointer-events-none z-0"></div>
+  <div class="fixed inset-0 crinkle-overlay z-[60]"></div>
+
+  <!-- =========================
+       LOGIN VIEW (gates socket connection)
+       ========================= -->
+  <main id="loginView" class="relative z-10 max-w-md mx-auto px-margin-mobile py-stack-lg min-h-screen flex flex-col">
+    <header class="border-b-2 border-primary pb-stack-md mb-stack-md">
+      <p class="font-label-sm text-label-sm text-primary uppercase opacity-60">CHECKPOINT // VOL. I</p>
+      <h1 class="font-headline-lg-mobile text-[32px] uppercase tracking-tighter text-primary leading-none mt-1">WHAT DO WE<br>CALL YOU?</h1>
+    </header>
+
+    <div class="relative bg-surface-container-lowest border-2 border-primary p-4 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] -rotate-1 mb-stack-md">
+      <p class="font-label-sm text-label-sm text-primary uppercase opacity-60 mb-2">HANDLE_</p>
+      <input id="loginInput" type="text" maxlength="24" placeholder="YOUR_NAME" autocomplete="off"
+        class="w-full bg-transparent text-primary font-headline-md text-[28px] uppercase tracking-tight border-b-2 border-primary pb-1 placeholder-on-surface-variant/40">
+      <p class="font-label-sm text-label-sm text-on-surface-variant uppercase mt-2">VISIBLE TO YOUR CREW.</p>
+      <div class="absolute -top-2 -right-2 w-10 h-5 bg-secondary-container border border-primary opacity-70 rotate-12"></div>
+    </div>
+
+    <button id="loginBtn"
+      class="bg-primary text-on-primary border-2 border-primary py-4 px-5 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all flex justify-between items-center mb-stack-sm">
+      <div class="text-left">
+        <p class="font-label-sm text-label-sm uppercase opacity-60">ACTION</p>
+        <p class="font-headline-md text-headline-md uppercase tracking-tight">LOGIN</p>
+      </div>
+      <span class="material-symbols-outlined text-2xl">arrow_forward</span>
+    </button>
+
+    <p id="loginError" class="font-label-md text-label-md text-error uppercase font-bold" hidden></p>
+
+    <div class="mt-auto pt-stack-md border-t-2 border-primary flex justify-between items-baseline">
+      <p class="font-label-sm text-label-sm uppercase text-primary opacity-70">SAVED LOCALLY // YOU CAN CHANGE LATER</p>
+      <span class="font-stamp-accent text-stamp-accent bg-primary text-on-primary px-2 py-0.5 -rotate-6">AUTH</span>
+    </div>
+  </main>
+
+  <!-- =========================
+       JOIN FORM
+       ========================= -->
+  <main id="join-form" class="hidden relative z-10 max-w-md mx-auto px-margin-mobile py-stack-lg min-h-screen flex flex-col">
+
+    <header class="border-b-2 border-primary pb-stack-md mb-stack-md">
+      <p class="font-label-sm text-label-sm text-primary uppercase opacity-60">ROLE // LENS</p>
+      <h1 class="font-headline-lg-mobile text-[32px] uppercase tracking-tighter text-primary leading-none mt-1">CONNECT TO<br>A CAMEROOM</h1>
+    </header>
+
+    <div class="bg-surface-container-lowest border-2 border-primary p-4 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] -rotate-1 mb-stack-md">
+      <p class="font-label-sm text-label-sm text-primary uppercase opacity-60 mb-2">CONNECTION CODE_</p>
+      <input id="roomInput" type="text" inputmode="numeric" maxlength="4" placeholder="0000" pattern="[0-9]{4}" autocomplete="off"
+        class="w-full bg-transparent text-primary text-center font-headline-lg text-[56px] tracking-[0.3em] font-extrabold border-b-2 border-primary pb-1 placeholder-on-surface-variant/40">
+      <p class="font-label-sm text-label-sm text-on-surface-variant uppercase mt-2 text-center">4 DIGITS // SUPPLIED BY HOST</p>
+    </div>
+
+    <button id="joinBtn"
+      class="bg-primary text-on-primary border-2 border-primary py-4 px-5 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all flex justify-between items-center mb-stack-sm">
+      <div class="text-left">
+        <p class="font-label-sm text-label-sm uppercase opacity-60">ACTION</p>
+        <p class="font-headline-md text-headline-md uppercase tracking-tight">CONNECT</p>
+      </div>
+      <span class="material-symbols-outlined text-2xl">arrow_forward</span>
+    </button>
+
+    <p id="joinError" class="font-label-md text-label-md text-error uppercase font-bold" hidden></p>
+
+    <div class="mt-auto pt-stack-md border-t-2 border-primary flex justify-between items-baseline">
+      <p class="font-label-sm text-label-sm uppercase text-primary opacity-70">SCAN HOST'S QR TO SKIP TYPING</p>
+      <span class="font-stamp-accent text-stamp-accent bg-primary text-on-primary px-2 py-0.5 -rotate-6">LENS</span>
+    </div>
+  </main>
+
+  <!-- =========================
+       CAMERA VIEW
+       ========================= -->
+  <main id="camera-view" class="hidden relative z-10 min-h-screen h-screen flex flex-col p-margin-mobile pb-24">
+
+    <!-- TopAppBar -->
+    <header class="flex justify-between items-center py-3 px-3 border-2 border-primary bg-surface-container-lowest mb-stack-sm shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+      <div class="flex items-center gap-2 min-w-0">
+        <span class="material-symbols-outlined text-primary text-xl">link</span>
+        <h1 class="font-headline-lg-mobile text-[16px] uppercase tracking-tighter text-primary whitespace-nowrap">CONNECTED TO #<span id="connectedRoom">----</span></h1>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="w-3 h-3 bg-error rounded-full animate-pulse shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"></div>
+        <span class="material-symbols-outlined text-primary text-xl">photo_camera</span>
+      </div>
+    </header>
+
+    <!-- Banner -->
+    <div class="relative w-full mb-stack-sm">
+      <div class="bg-primary text-on-primary py-2 px-4 -rotate-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] border-2 border-primary">
+        <p class="font-stamp-accent text-stamp-accent text-center tracking-widest uppercase">
+          KEEP LENS STEADY // ALIGN WITH HOST
+        </p>
+      </div>
+      <div class="absolute -top-2 left-4 w-8 h-4 bg-secondary-container border border-primary opacity-60 rotate-12"></div>
+      <div class="absolute -bottom-2 right-8 w-10 h-4 bg-secondary-container border border-primary opacity-60 -rotate-6"></div>
+    </div>
+
+    <!-- Polaroid viewfinder -->
+    <div class="flex-grow relative border-[10px] border-surface-container-lowest shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col overflow-hidden">
+      <div class="relative flex-grow bg-black overflow-hidden">
+        <video id="video" autoplay playsinline muted class="w-full h-full object-cover viewfinder-mono"></video>
+        <canvas id="canvas" hidden></canvas>
+
+        <!-- Overlays -->
+        <div class="absolute inset-0 viewfinder-crosshair opacity-25 pointer-events-none"></div>
+        <div class="scanline"></div>
+
+        <!-- Corner brackets -->
+        <div class="absolute top-3 left-3 w-6 h-6 border-t-2 border-l-2 border-white opacity-70"></div>
+        <div class="absolute top-3 right-3 w-6 h-6 border-t-2 border-r-2 border-white opacity-70"></div>
+        <div class="absolute bottom-3 left-3 w-6 h-6 border-b-2 border-l-2 border-white opacity-70"></div>
+        <div class="absolute bottom-3 right-3 w-6 h-6 border-b-2 border-r-2 border-white opacity-70"></div>
+
+        <!-- Top chips -->
+        <div class="absolute top-4 left-1/2 -translate-x-1/2 flex gap-2 whitespace-nowrap">
+          <span class="font-label-sm text-[10px] text-white tracking-widest uppercase bg-black/55 px-2 py-0.5 whitespace-nowrap">AF-L</span>
+          <span class="font-label-sm text-[10px] text-white tracking-widest uppercase bg-black/55 px-2 py-0.5 whitespace-nowrap">ISO&nbsp;400</span>
+          <span class="font-label-sm text-[10px] text-white tracking-widest uppercase bg-black/55 px-2 py-0.5 whitespace-nowrap">B&amp;W</span>
+        </div>
+
+        <!-- Flash -->
+        <div id="flash" class="flash"></div>
+      </div>
+
+      <!-- Polaroid caption -->
+      <div class="bg-surface-container-lowest p-3 border-t-2 border-outline-variant flex justify-between items-end">
+        <div class="space-y-1 min-w-0">
+          <p class="font-label-sm text-label-sm text-primary uppercase opacity-60">STREAM_RES: <span id="streamRes">—</span></p>
+          <p class="font-label-md text-label-md text-primary uppercase font-bold tracking-tight" id="frameStatus">STANDBY // AWAITING SHUTTER</p>
+        </div>
+        <div class="flex flex-col items-end shrink-0">
+          <span id="positionBadge" class="font-headline-md text-[32px] leading-none font-extrabold">--</span>
+          <span class="font-label-sm text-[10px] uppercase">INDEX</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status ticker -->
+    <footer class="mt-stack-sm bg-secondary-container border-2 border-primary p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center gap-3">
+      <div class="w-2 h-2 bg-primary rounded-full ticker-dot"></div>
+      <p id="statusTicker" class="font-label-md text-label-md text-primary font-bold uppercase overflow-hidden whitespace-nowrap"></p>
+    </footer>
+
+    <!-- Floating tag -->
+    <div class="absolute bottom-36 right-3 -rotate-6 bg-surface-container-lowest border border-primary px-2 py-0.5 font-label-sm text-[10px] shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] z-30 whitespace-nowrap">
+      BATCH_<span id="batchLetter">A</span>
+    </div>
+  </main>
+
+  <!-- Bottom nav (decorative, joiner view only) -->
+  <nav id="bottomNav" class="hidden fixed bottom-0 left-0 w-full z-40 flex justify-around items-center bg-surface border-t-2 border-primary h-20">
+    <button class="flex flex-col items-center justify-center bg-primary text-on-primary p-2 border-2 border-primary w-20">
+      <span class="material-symbols-outlined">view_in_ar</span>
+      <span class="font-label-sm text-[10px] uppercase mt-1">VIEWFINDER</span>
+    </button>
+    <button class="flex flex-col items-center justify-center text-primary p-2 w-20">
+      <span class="material-symbols-outlined">collections</span>
+      <span class="font-label-sm text-[10px] uppercase mt-1">GALLERY</span>
+    </button>
+    <button class="flex flex-col items-center justify-center text-primary p-2 w-20">
+      <span class="material-symbols-outlined">group</span>
+      <span class="font-label-sm text-[10px] uppercase mt-1">SQUAD</span>
+    </button>
+    <button class="flex flex-col items-center justify-center text-primary p-2 w-20">
+      <span class="material-symbols-outlined">settings_ethernet</span>
+      <span class="font-label-sm text-[10px] uppercase mt-1">SETTINGS</span>
+    </button>
+  </nav>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/join.js"></script>
+</body>
+</html>

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>K4MERA // Host</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script src="/js/tw-config.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700;800&family=Courier+Prime:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="bg-surface font-body-md text-on-surface min-h-screen pb-24">
+
+  <div class="fixed inset-0 graph-paper pointer-events-none z-0"></div>
+  <div class="fixed inset-0 crinkle-overlay z-[60]"></div>
+
+  <!-- =========================
+       LOGIN VIEW (gates socket connection)
+       ========================= -->
+  <main id="loginView" class="relative z-10 max-w-md mx-auto px-margin-mobile py-stack-lg min-h-screen flex flex-col">
+    <header class="border-b-2 border-primary pb-stack-md mb-stack-md">
+      <p class="font-label-sm text-label-sm text-primary uppercase opacity-60">CHECKPOINT // VOL. I</p>
+      <h1 class="font-headline-lg-mobile text-[32px] uppercase tracking-tighter text-primary leading-none mt-1">WHAT DO WE<br>CALL YOU?</h1>
+    </header>
+
+    <div class="relative bg-surface-container-lowest border-2 border-primary p-4 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] -rotate-1 mb-stack-md">
+      <p class="font-label-sm text-label-sm text-primary uppercase opacity-60 mb-2">HANDLE_</p>
+      <input id="loginInput" type="text" maxlength="24" placeholder="YOUR_NAME" autocomplete="off"
+        class="w-full bg-transparent text-primary font-headline-md text-[28px] uppercase tracking-tight border-b-2 border-primary pb-1 placeholder-on-surface-variant/40">
+      <p class="font-label-sm text-label-sm text-on-surface-variant uppercase mt-2">VISIBLE TO YOUR CREW.</p>
+      <div class="absolute -top-2 -right-2 w-10 h-5 bg-secondary-container border border-primary opacity-70 rotate-12"></div>
+    </div>
+
+    <button id="loginBtn"
+      class="bg-primary text-on-primary border-2 border-primary py-4 px-5 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all flex justify-between items-center mb-stack-sm">
+      <div class="text-left">
+        <p class="font-label-sm text-label-sm uppercase opacity-60">ACTION</p>
+        <p class="font-headline-md text-headline-md uppercase tracking-tight">LOGIN</p>
+      </div>
+      <span class="material-symbols-outlined text-2xl">arrow_forward</span>
+    </button>
+
+    <p id="loginError" class="font-label-md text-label-md text-error uppercase font-bold" hidden></p>
+
+    <div class="mt-auto pt-stack-md border-t-2 border-primary flex justify-between items-baseline">
+      <p class="font-label-sm text-label-sm uppercase text-primary opacity-70">SAVED LOCALLY // YOU CAN CHANGE LATER</p>
+      <span class="font-stamp-accent text-stamp-accent bg-primary text-on-primary px-2 py-0.5 -rotate-6">AUTH</span>
+    </div>
+  </main>
+
+  <main id="hostMain" class="hidden relative z-10 max-w-md mx-auto px-margin-mobile py-stack-md min-h-screen flex flex-col">
+
+    <!-- Letterhead -->
+    <header class="border-b-2 border-primary pb-stack-md mb-stack-md flex justify-between items-start">
+      <div>
+        <p class="font-label-sm text-label-sm text-primary uppercase opacity-60">ROLE // CONDUCTOR</p>
+        <h1 class="font-headline-lg-mobile text-[32px] uppercase tracking-tighter text-primary leading-none mt-1">CAMEROOM//<br>LOBBY</h1>
+      </div>
+      <button class="material-symbols-outlined text-primary text-3xl">menu</button>
+    </header>
+
+    <!-- Room code stamp -->
+    <div class="flex items-start gap-stack-sm mb-stack-md">
+      <div class="relative bg-surface-container-lowest border-2 border-primary px-4 py-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] -rotate-2 inline-block">
+        <p class="font-label-sm text-label-sm text-primary uppercase opacity-60">ROOM:</p>
+        <p id="roomCode" class="font-headline-md text-[28px] text-primary leading-none tracking-widest">----</p>
+      </div>
+      <div id="shareCard" class="hidden flex-grow bg-surface-container-lowest border-2 border-primary p-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] rotate-1 flex items-center gap-2 min-w-0">
+        <div id="qrCode" class="shrink-0"></div>
+        <div class="flex-grow min-w-0">
+          <p class="font-label-sm text-label-sm text-primary uppercase opacity-60">SCAN OR SHARE</p>
+          <p id="joinUrl" class="font-label-md text-[11px] text-primary break-all leading-tight">—</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lens grid section -->
+    <section class="mb-stack-md">
+      <div class="flex justify-between items-baseline mb-stack-sm">
+        <h2 class="font-label-md text-label-md text-primary uppercase tracking-widest font-bold">// LENSES</h2>
+        <p id="lensCount" class="font-label-sm text-label-sm uppercase text-on-surface-variant">0 CONNECTED</p>
+      </div>
+      <div id="lensGrid" class="grid grid-cols-2 gap-stack-sm"></div>
+    </section>
+
+    <!-- Status ticker -->
+    <div class="bg-secondary-container border-2 border-primary p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] mb-stack-md flex items-center gap-3">
+      <div class="w-2 h-2 bg-primary rounded-full ticker-dot"></div>
+      <p id="statusTicker" class="font-label-md text-label-md text-primary font-bold uppercase">SYS_BOOT // WAITING_FOR_LENSES<span class="caret"></span></p>
+    </div>
+
+    <!-- Shutter -->
+    <div class="flex flex-col items-center mt-auto mb-stack-md">
+      <button id="snapBtn" disabled
+        class="relative w-36 h-36 rounded-full bg-on-primary border-[6px] border-primary shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] active:translate-x-1.5 active:translate-y-1.5 active:shadow-[0px_0px_0px_0px_rgba(0,0,0,0)] disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center">
+        <div class="w-24 h-24 rounded-full bg-primary border-2 border-on-primary"></div>
+      </button>
+      <p id="snapHint" class="font-label-md text-label-md text-primary uppercase mt-stack-sm tracking-widest text-center">— PRESS TO SHUTTER ALL LENSES —</p>
+    </div>
+
+    <!-- Preview (after GIF built) -->
+    <section id="preview" hidden class="mb-stack-md">
+      <div class="bg-surface-container-lowest border-2 border-primary p-3 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] -rotate-1 relative">
+        <div class="bg-black border-2 border-primary aspect-square overflow-hidden">
+          <img id="gifPreview" class="w-full h-full object-cover" alt="Wigglegram preview">
+        </div>
+        <div class="pt-3 flex justify-between items-end">
+          <div>
+            <p class="font-label-sm text-label-sm text-primary uppercase opacity-60">WIGGLEGRAM_</p>
+            <p id="gifMeta" class="font-label-md text-label-md text-primary font-bold uppercase">— FRAMES // — KB</p>
+          </div>
+          <span class="font-stamp-accent text-stamp-accent bg-primary text-on-primary px-2 py-0.5 -rotate-12 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">DONE</span>
+        </div>
+      </div>
+      <div class="flex gap-stack-sm mt-stack-md">
+        <a id="downloadLink" download="wigglegram.gif"
+          class="flex-1 text-center bg-primary text-on-primary py-3 px-4 border-2 border-primary shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all font-label-md text-label-md uppercase tracking-widest font-bold">
+          ↓ DOWNLOAD WIGGLE
+        </a>
+        <button id="newSnapBtn"
+          class="flex-1 bg-surface-container-lowest text-primary py-3 px-4 border-2 border-primary shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all font-label-md text-label-md uppercase tracking-widest font-bold">
+          ↻ NEW BATCH
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Bottom nav (decorative) -->
+  <nav id="bottomNav" class="hidden fixed bottom-0 left-0 w-full z-40 flex justify-around items-center bg-surface border-t-2 border-primary h-20 max-w-md mx-auto right-0">
+    <button class="flex flex-col items-center justify-center bg-primary text-on-primary p-2 border-2 border-primary w-20">
+      <span class="material-symbols-outlined">view_in_ar</span>
+      <span class="font-label-sm text-[10px] uppercase mt-1">VIEWFINDER</span>
+    </button>
+    <button class="flex flex-col items-center justify-center text-primary p-2 w-20">
+      <span class="material-symbols-outlined">collections</span>
+      <span class="font-label-sm text-[10px] uppercase mt-1">GALLERY</span>
+    </button>
+    <button class="flex flex-col items-center justify-center text-primary p-2 w-20">
+      <span class="material-symbols-outlined">group</span>
+      <span class="font-label-sm text-[10px] uppercase mt-1">SQUAD</span>
+    </button>
+    <button class="flex flex-col items-center justify-center text-primary p-2 w-20">
+      <span class="material-symbols-outlined">settings_ethernet</span>
+      <span class="font-label-sm text-[10px] uppercase mt-1">SETTINGS</span>
+    </button>
+  </nav>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gifshot@0.4.5/dist/gifshot.min.js"></script>
+  <script src="/js/host.js"></script>
+</body>
+</html>
