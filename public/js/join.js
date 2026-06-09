@@ -24,6 +24,11 @@ const statusTicker  = $('statusTicker');
 const batchLetter   = $('batchLetter');
 const flash         = $('flash');
 
+const wiggleResult   = $('wiggleResult');
+const wigglePreview  = $('wigglePreview');
+const wiggleMeta     = $('wiggleMeta');
+const wiggleDownload = $('wiggleDownload');
+
 const USERNAME_KEY = 'cameroom_username';
 
 let socket = null;
@@ -90,6 +95,20 @@ function attachSocketListeners() {
       frameStatus.textContent = `UPLINK // ${Math.round(blob.size / 1024)} KB`;
       setTicker(`FRAME SENT // ${Math.round(blob.size / 1024)}KB`);
     }, 'image/jpeg', 0.85);
+  });
+
+  socket.on('WIGGLEGRAM_DROP', ({ gif }) => {
+    // Host stitched the wigglegram and pushed it to everyone in the room.
+    if (stream) stream.getTracks().forEach((t) => t.stop());
+    const blob = new Blob([gif], { type: 'image/gif' });
+    const url = URL.createObjectURL(blob);
+    wigglePreview.src = url;
+    wiggleDownload.href = url;
+    wiggleMeta.textContent = `${Math.round(blob.size / 1024)} KB // FROM HOST`;
+    cameraView.classList.add('hidden');
+    bottomNav.classList.add('hidden');
+    wiggleResult.classList.remove('hidden');
+    setTicker(`WIGGLEGRAM RECEIVED // ${Math.round(blob.size / 1024)}KB`);
   });
 
   socket.on('ROOM_CLOSED', () => {

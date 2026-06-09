@@ -31,7 +31,8 @@ const USERNAME_KEY = 'cameroom_username';
 
 let socket = null;
 let username = null;
-let lobby = [];                  // [{ position }]
+let lobby = [];                  // [{ position, username }] — server-assigned
+let displayOrder = [];           // [position, position, ...] — host's reorder, drives GIF sequence
 let expectedAtSnap = 0;
 let received = new Map();        // position -> ArrayBuffer (JPEG)
 let snapTimeout = null;
@@ -85,6 +86,11 @@ function enterSession(name) {
 function attachSocketListeners() {
   socket.on('LOBBY_UPDATE', ({ joiners }) => {
     lobby = joiners;
+    // Preserve existing manual order; append newcomers; drop disconnected.
+    const present = new Set(joiners.map((j) => j.position));
+    displayOrder = displayOrder.filter((p) => present.has(p));
+    joiners.forEach((j) => { if (!displayOrder.includes(j.position)) displayOrder.push(j.position); });
+
     lensCount.textContent = `${joiners.length} CONNECTED`;
     renderLensGrid();
 
@@ -123,20 +129,33 @@ function attachSocketListeners() {
 
 function renderLensGrid() {
   lensGrid.replaceChildren();
-  const total = Math.max(MIN_VISIBLE_SLOTS, lobby.length);
+  const lobbyByPos = new Map(lobby.map((j) => [j.position, j]));
+  const total = Math.max(MIN_VISIBLE_SLOTS, displayOrder.length);
   for (let i = 0; i < total; i++) {
-    const joiner = lobby[i];
+    const pos = displayOrder[i];
+    const joiner = pos !== undefined ? lobbyByPos.get(pos) : null;
     lensGrid.appendChild(joiner
       ? lensCard(joiner, received.get(joiner.position), i)
       : placeholderCard(i));
   }
 }
 
+function moveLens(position, delta) {
+  const idx = displayOrder.indexOf(position);
+  const target = idx + delta;
+  if (idx < 0 || target < 0 || target >= displayOrder.length) return;
+  const tmp = displayOrder[target];
+  displayOrder[target] = displayOrder[idx];
+  displayOrder[idx] = tmp;
+  renderLensGrid();
+  setTicker(`REORDERED // SEQUENCE: ${displayOrder.map((p) => '#' + String(p).padStart(2,'0')).join(' → ')}`);
+}
+
 function lensCard(joiner, photoBuf, idx) {
   const { position, username } = joiner;
   const tilt = idx % 2 === 0 ? '-rotate-1' : 'rotate-1';
   const card = document.createElement('div');
-  card.className = `bg-surface-container-lowest border-2 border-primary p-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${tilt}`;
+  card.className = `bg-surface-container-lowest border-2 border-primary p-2 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${tilt} relative`;
 
   const window_ = document.createElement('div');
   window_.className = 'bg-black aspect-square border-2 border-primary overflow-hidden flex items-center justify-center relative';
@@ -159,6 +178,15 @@ function lensCard(joiner, photoBuf, idx) {
     dotRing.className = 'absolute inset-3 border border-white/30 rounded-full';
     window_.appendChild(dotRing);
   }
+
+  // Sequence-order index badge (top-left): shows where this lens sits in the GIF sequence.
+  const seqIdx = displayOrder.indexOf(position);
+  if (seqIdx >= 0) {
+    const seqBadge = document.createElement('span');
+    seqBadge.className = 'absolute top-1 left-1 font-stamp-accent text-stamp-accent bg-primary text-on-primary px-1.5 py-0.5';
+    seqBadge.textContent = String(seqIdx + 1);
+    window_.appendChild(seqBadge);
+  }
   card.appendChild(window_);
 
   const caption = document.createElement('div');
@@ -176,6 +204,26 @@ function lensCard(joiner, photoBuf, idx) {
   caption.appendChild(idTag);
 
   card.appendChild(caption);
+
+  // Reorder controls
+  const isFirst = seqIdx === 0;
+  const isLast  = seqIdx === displayOrder.length - 1;
+  const reorder = document.createElement('div');
+  reorder.className = 'mt-1 grid grid-cols-2 gap-1';
+  const prevBtn = document.createElement('button');
+  prevBtn.className = `border border-primary bg-surface text-primary py-1 font-label-sm text-[11px] uppercase tracking-widest font-bold ${isFirst ? 'opacity-30 cursor-not-allowed' : 'active:translate-x-px active:translate-y-px'}`;
+  prevBtn.textContent = '◀ PREV';
+  prevBtn.disabled = isFirst;
+  prevBtn.addEventListener('click', (e) => { e.stopPropagation(); moveLens(position, -1); });
+  reorder.appendChild(prevBtn);
+  const nextBtn = document.createElement('button');
+  nextBtn.className = `border border-primary bg-surface text-primary py-1 font-label-sm text-[11px] uppercase tracking-widest font-bold ${isLast ? 'opacity-30 cursor-not-allowed' : 'active:translate-x-px active:translate-y-px'}`;
+  nextBtn.textContent = 'NEXT ▶';
+  nextBtn.disabled = isLast;
+  nextBtn.addEventListener('click', (e) => { e.stopPropagation(); moveLens(position, 1); });
+  reorder.appendChild(nextBtn);
+  card.appendChild(reorder);
+
   return card;
 }
 
@@ -256,8 +304,11 @@ function resetSnapButton() {
 // ---------- GIF assembly (gifshot, client-side, ping-pong) ----------
 
 async function buildGif() {
-  // Extract frames ordered by camera position (1, 2, 3, ..., N)
-  const positions = [...received.keys()].sort((a, b) => a - b);
+  // Extract frames in the host's chosen display order (reordered by ◀/▶ buttons).
+  // Fall back to numeric position order if displayOrder is empty.
+  const captured = new Set(received.keys());
+  const ordered = displayOrder.filter((p) => captured.has(p));
+  const positions = ordered.length ? ordered : [...captured].sort((a, b) => a - b);
 
   // First frame's natural dimensions drive the GIF canvas size.
   const firstImg = await bytesToImage(received.get(positions[0]));
@@ -318,7 +369,12 @@ async function buildGif() {
       snapBtn.parentElement.classList.add('hidden');
       previewSection.hidden = false;
 
-      setTicker(`DONE // ${sequence.length}_FRAMES // ${kb}KB`);
+      // Distribute the finished wigglegram to every lens in the room.
+      gifBlob.arrayBuffer().then((buf) => {
+        if (socket) socket.emit('WIGGLEGRAM_READY', buf);
+      });
+
+      setTicker(`DONE // ${sequence.length}_FRAMES // ${kb}KB // SHARED`);
       resolve();
     });
   });

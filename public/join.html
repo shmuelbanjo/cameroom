@@ -163,6 +163,39 @@
     </div>
   </main>
 
+  <!-- =========================
+       WIGGLEGRAM RESULT (after host stitches)
+       ========================= -->
+  <main id="wiggleResult" class="hidden relative z-10 max-w-md mx-auto px-margin-mobile py-stack-md min-h-screen flex flex-col pb-24">
+
+    <header class="border-b-2 border-primary pb-stack-md mb-stack-md">
+      <p class="font-label-sm text-label-sm text-primary uppercase opacity-60">WIGGLEGRAM // DELIVERED</p>
+      <h1 class="font-headline-lg-mobile text-[32px] uppercase tracking-tighter text-primary leading-none mt-1">YOUR WIGGLE<br>IS READY</h1>
+    </header>
+
+    <div class="bg-surface-container-lowest border-2 border-primary p-3 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] -rotate-1 mb-stack-md relative">
+      <div class="bg-black border-2 border-primary aspect-square overflow-hidden">
+        <img id="wigglePreview" class="w-full h-full object-cover" alt="Wigglegram">
+      </div>
+      <div class="pt-3 flex justify-between items-end">
+        <div>
+          <p class="font-label-sm text-label-sm text-primary uppercase opacity-60">CAMEROOM_</p>
+          <p id="wiggleMeta" class="font-label-md text-label-md text-primary font-bold uppercase">— KB</p>
+        </div>
+        <span class="font-stamp-accent text-stamp-accent bg-primary text-on-primary px-2 py-0.5 -rotate-12 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">DONE</span>
+      </div>
+    </div>
+
+    <a id="wiggleDownload" download="wigglegram.gif"
+      class="block text-center bg-primary text-on-primary py-4 px-5 border-2 border-primary shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all font-label-md text-label-md uppercase tracking-widest font-bold mb-stack-sm">
+      ↓ DOWNLOAD WIGGLE
+    </a>
+
+    <a href="/" class="block text-center bg-surface-container-lowest text-primary py-3 px-5 border-2 border-primary shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all font-label-md text-label-md uppercase tracking-widest font-bold">
+      ↻ DONE
+    </a>
+  </main>
+
   <!-- Bottom nav (decorative, joiner view only) -->
   <nav id="bottomNav" class="hidden fixed bottom-0 left-0 w-full z-40 flex justify-around items-center bg-surface border-t-2 border-primary h-20">
     <button class="flex flex-col items-center justify-center bg-primary text-on-primary p-2 border-2 border-primary w-20">

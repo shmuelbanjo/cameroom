@@ -2,6 +2,10 @@ node_modules/
 npm-debug.log*
 *.log
 
+# Local debug artifacts (manual prod-poking scripts, captured frames)
+demo-host.js
+captures/
+
 # Claude Code session config (local-only)
 .claude/
 

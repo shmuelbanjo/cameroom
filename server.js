@@ -82,6 +82,14 @@ io.on('connection', (socket) => {
     socket.to(code).emit('SNAP_NOW');
   });
 
+  // Host pushes the finished wigglegram back so every lens in the room can see + download it.
+  socket.on('WIGGLEGRAM_READY', (gifBuf) => {
+    const code = socket.data.roomCode;
+    const room = rooms.get(code);
+    if (!room || room.hostId !== socket.id) return;
+    socket.to(code).emit('WIGGLEGRAM_DROP', { gif: gifBuf });
+  });
+
   socket.on('SUBMIT_PHOTO', (photoBuf) => {
     const code = socket.data.roomCode;
     const room = rooms.get(code);
