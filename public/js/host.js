@@ -37,11 +37,25 @@ const curveEditor   = $('curveEditor');
 const curvePath     = $('curvePath');
 const curveHandles  = $('curveHandles');
 
+// Playback panel DOM
+const speedSlider   = $('speedSlider');
+const speedValue    = $('speedValue');
+
+// Sequence editor DOM
+const sequenceEditor = $('sequenceEditor');
+const sequenceStrip  = $('sequenceStrip');
+const resetSequence  = $('resetSequence');
+const rebuildGif     = $('rebuildGif');
+
 const SNAP_TIMEOUT_MS = 5000;
-const MIN_CAMERAS = 2;
-const MIN_VISIBLE_SLOTS = 4;
+const MIN_CAMERAS = 1;
+const MIN_VISIBLE_SLOTS = 2;
+const MAX_VISIBLE_SLOTS = 10;
 const USERNAME_KEY = 'cameroom_username';
 const FILTER_EMIT_THROTTLE_MS = 100;
+const SPEED_DEFAULT_MS = 100;
+const SPEED_MIN_MS = 50;
+const SPEED_MAX_MS = 500;
 
 let socket = null;
 let username = null;
@@ -86,6 +100,10 @@ const SLIDER_DEFS = [
 // X positions fixed; Y values draggable.
 const CURVE_X = [32, 96, 160, 224];
 let curveY = [32, 96, 160, 224];   // identity
+
+// ===== Playback state =====
+let playbackSpeed = SPEED_DEFAULT_MS;
+let gifSequence = [];       // array of positions, set after first build, editable in preview
 
 // ---------- Login flow ----------
 
@@ -142,7 +160,7 @@ function attachSocketListeners() {
     displayOrder = displayOrder.filter((p) => present.has(p));
     joiners.forEach((j) => { if (!displayOrder.includes(j.position)) displayOrder.push(j.position); });
 
-    lensCount.textContent = `${joiners.length} CONNECTED`;
+    lensCount.textContent = `${joiners.length} CONNECTED // CAP ${MAX_VISIBLE_SLOTS}`;
     renderLensGrid();
 
     // If a new joiner came in, re-push the current filter so they sync.
@@ -153,8 +171,8 @@ function attachSocketListeners() {
     const ready = joiners.length >= MIN_CAMERAS;
     snapBtn.disabled = !ready;
     snapHint.textContent = ready
-      ? `— PRESS TO SHUTTER ${joiners.length} LENSES —`
-      : `— NEED ${MIN_CAMERAS - joiners.length} MORE LENS${MIN_CAMERAS - joiners.length === 1 ? '' : 'ES'} —`;
+      ? `— PRESS TO SHUTTER ${joiners.length} LENS${joiners.length === 1 ? '' : 'ES'} —`
+      : `— NEED ${MIN_CAMERAS} LENS // GOT ${joiners.length} —`;
 
     setTicker(ready
       ? `STAND_BY // ${joiners.length} LENSES SYNCED`
@@ -186,7 +204,8 @@ function attachSocketListeners() {
 function renderLensGrid() {
   lensGrid.replaceChildren();
   const lobbyByPos = new Map(lobby.map((j) => [j.position, j]));
-  const total = Math.max(MIN_VISIBLE_SLOTS, displayOrder.length);
+  const desired = Math.max(MIN_VISIBLE_SLOTS, displayOrder.length + 1);
+  const total = Math.min(MAX_VISIBLE_SLOTS, desired);
   for (let i = 0; i < total; i++) {
     const pos = displayOrder[i];
     const joiner = pos !== undefined ? lobbyByPos.get(pos) : null;
@@ -352,12 +371,20 @@ async function finalizeSnap() {
 function resetSnapButton() {
   snapBtn.disabled = lobby.length < MIN_CAMERAS;
   snapHint.textContent = lobby.length >= MIN_CAMERAS
-    ? `— PRESS TO SHUTTER ${lobby.length} LENSES —`
-    : `— NEED ${MIN_CAMERAS - lobby.length} MORE LENS${MIN_CAMERAS - lobby.length === 1 ? '' : 'ES'} —`;
-  setTicker(`READY // ${lobby.length} LENSES`);
+    ? `— PRESS TO SHUTTER ${lobby.length} LENS${lobby.length === 1 ? '' : 'ES'} —`
+    : `— NEED ${MIN_CAMERAS} LENS // GOT ${lobby.length} —`;
+  setTicker(`READY // ${lobby.length} LENS${lobby.length === 1 ? '' : 'ES'}`);
 }
 
 // ---------- GIF assembly (gifshot, client-side, ping-pong) ----------
+
+function pingPongSequence(positions) {
+  // [1, 2, 3, 4] -> [1, 2, 3, 4, 3, 2]  (drop the endpoints on the reverse leg
+  // so the GIF loop closes cleanly without a held frame)
+  const seq = positions.slice();
+  for (let i = positions.length - 2; i > 0; i--) seq.push(positions[i]);
+  return seq;
+}
 
 async function buildGif() {
   // Extract frames in the host's chosen display order (reordered by ◀/▶ buttons).
@@ -366,27 +393,30 @@ async function buildGif() {
   const ordered = displayOrder.filter((p) => captured.has(p));
   const positions = ordered.length ? ordered : [...captured].sort((a, b) => a - b);
 
+  // Default ping-pong sequence; user can re-order it after the first build.
+  gifSequence = pingPongSequence(positions);
+
   // First frame's natural dimensions drive the GIF canvas size.
   const firstImg = await bytesToImage(received.get(positions[0]));
   const gifWidth  = firstImg.naturalWidth;
   const gifHeight = firstImg.naturalHeight;
 
-  // Materialize each frame as a blob URL gifshot can fetch.
-  const frameUrls = positions.map((p) =>
+  return renderGifFromSequence(gifSequence, gifWidth, gifHeight);
+}
+
+async function renderGifFromSequence(seqPositions, gifWidth, gifHeight) {
+  // Materialize each frame in the requested order as a blob URL gifshot can fetch.
+  const frameUrls = seqPositions.map((p) =>
     URL.createObjectURL(new Blob([received.get(p)], { type: 'image/jpeg' }))
   );
-
-  // Ping-pong sequence: 1..N then N-1..2 (endpoints dropped, loop closes cleanly).
-  // For N=4 this yields [1, 2, 3, 4, 3, 2] — exactly the smooth 3D wiggle order.
-  const sequence = frameUrls.slice();
-  for (let i = frameUrls.length - 2; i > 0; i--) sequence.push(frameUrls[i]);
+  const sequence = frameUrls;
 
   return new Promise((resolve, reject) => {
     gifshot.createGIF({
       images: sequence,
       gifWidth,
       gifHeight,
-      interval: 0.1,              // 100 ms between frames
+      interval: playbackSpeed / 1000,   // user-controlled frame delay (default 100 ms)
       numFrames: sequence.length,
       frameDuration: 1,
       sampleInterval: 10,
@@ -419,11 +449,13 @@ async function buildGif() {
       downloadLink.href = gifUrl;
 
       const kb = Math.round(gifBlob.size / 1024);
-      gifMeta.textContent = `${sequence.length} FRAMES // ${kb} KB`;
+      gifMeta.textContent = `${sequence.length} FRAMES // ${kb} KB // ${playbackSpeed}MS`;
 
       document.getElementById('lensGrid').parentElement.classList.add('hidden');
       snapBtn.parentElement.classList.add('hidden');
       previewSection.hidden = false;
+
+      renderSequenceStrip();
 
       // Distribute the finished wigglegram to every lens in the room.
       gifBlob.arrayBuffer().then((buf) => {
@@ -451,12 +483,113 @@ function bytesToImage(buf) {
 
 newSnapBtn.addEventListener('click', () => {
   received = new Map();
+  gifSequence = [];
   previewSection.hidden = true;
   document.getElementById('lensGrid').parentElement.classList.remove('hidden');
   snapBtn.parentElement.classList.remove('hidden');
   renderLensGrid();
   resetSnapButton();
 });
+
+// ---------- Playback controls ----------
+
+if (speedSlider) {
+  speedSlider.addEventListener('input', (e) => {
+    playbackSpeed = parseInt(e.target.value, 10);
+    speedValue.textContent = `${playbackSpeed}MS`;
+  });
+  speedValue.textContent = `${playbackSpeed}MS`;
+}
+
+// ---------- Per-frame sequence editor ----------
+
+function renderSequenceStrip() {
+  if (!sequenceStrip) return;
+  sequenceStrip.replaceChildren();
+  gifSequence.forEach((position, idx) => {
+    const tile = document.createElement('div');
+    tile.className = 'shrink-0 w-20 bg-surface-container-lowest border-2 border-primary p-1 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] flex flex-col items-stretch';
+
+    const thumb = document.createElement('div');
+    thumb.className = 'bg-black border border-primary aspect-square overflow-hidden relative';
+    const buf = received.get(position);
+    if (buf) {
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(new Blob([buf], { type: 'image/jpeg' }));
+      img.className = 'w-full h-full object-cover';
+      thumb.appendChild(img);
+    }
+    const seqBadge = document.createElement('span');
+    seqBadge.className = 'absolute top-0 left-0 font-stamp-accent text-stamp-accent bg-primary text-on-primary px-1.5 py-0.5';
+    seqBadge.textContent = idx + 1;
+    thumb.appendChild(seqBadge);
+    const lensBadge = document.createElement('span');
+    lensBadge.className = 'absolute bottom-0 right-0 font-label-sm text-[9px] bg-on-primary text-primary px-1';
+    lensBadge.textContent = `#${String(position).padStart(2, '0')}`;
+    thumb.appendChild(lensBadge);
+    tile.appendChild(thumb);
+
+    const ctrls = document.createElement('div');
+    ctrls.className = 'mt-1 grid grid-cols-2 gap-0.5';
+
+    const prev = document.createElement('button');
+    prev.className = `border border-primary bg-surface text-primary py-0.5 font-label-sm text-[10px] uppercase tracking-widest font-bold ${idx === 0 ? 'opacity-30' : ''}`;
+    prev.textContent = '◀';
+    prev.disabled = idx === 0;
+    prev.addEventListener('click', () => moveFrame(idx, -1));
+    ctrls.appendChild(prev);
+
+    const next = document.createElement('button');
+    next.className = `border border-primary bg-surface text-primary py-0.5 font-label-sm text-[10px] uppercase tracking-widest font-bold ${idx === gifSequence.length - 1 ? 'opacity-30' : ''}`;
+    next.textContent = '▶';
+    next.disabled = idx === gifSequence.length - 1;
+    next.addEventListener('click', () => moveFrame(idx, 1));
+    ctrls.appendChild(next);
+
+    tile.appendChild(ctrls);
+    sequenceStrip.appendChild(tile);
+  });
+}
+
+function moveFrame(idx, delta) {
+  const target = idx + delta;
+  if (target < 0 || target >= gifSequence.length) return;
+  const tmp = gifSequence[target];
+  gifSequence[target] = gifSequence[idx];
+  gifSequence[idx] = tmp;
+  renderSequenceStrip();
+  setTicker(`SEQUENCE // ${gifSequence.map((p) => '#' + String(p).padStart(2,'0')).join(' → ')}`);
+}
+
+if (resetSequence) {
+  resetSequence.addEventListener('click', () => {
+    const captured = new Set(received.keys());
+    const ordered = displayOrder.filter((p) => captured.has(p));
+    const positions = ordered.length ? ordered : [...captured].sort((a, b) => a - b);
+    gifSequence = pingPongSequence(positions);
+    renderSequenceStrip();
+    setTicker('SEQUENCE // PING-PONG');
+  });
+}
+
+if (rebuildGif) {
+  rebuildGif.addEventListener('click', async () => {
+    if (gifSequence.length === 0) return;
+    setTicker(`REBUILDING // ${gifSequence.length}_FRAMES // ${playbackSpeed}MS`);
+    rebuildGif.textContent = '↻ REBUILDING…';
+    rebuildGif.disabled = true;
+    try {
+      const firstImg = await bytesToImage(received.get(gifSequence[0]));
+      await renderGifFromSequence(gifSequence, firstImg.naturalWidth, firstImg.naturalHeight);
+    } catch (err) {
+      console.error(err);
+      setTicker('ERROR // REBUILD_FAILED');
+    } finally {
+      rebuildGif.textContent = '↻ REBUILD WIGGLEGRAM';
+      rebuildGif.disabled = false;
+    }
+  });
+}
 
 // ---------- Ticker helper ----------
 

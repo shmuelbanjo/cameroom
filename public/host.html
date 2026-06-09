@@ -103,11 +103,25 @@
       <button id="openAdvanced" class="mt-3 w-full font-label-sm text-label-sm uppercase tracking-widest underline opacity-80 hover:opacity-100">ADVANCED SETTINGS →</button>
     </section>
 
+    <!-- Playback panel -->
+    <section id="playbackPanel" class="mb-stack-md bg-surface-container-lowest border-2 border-primary p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+      <div class="flex justify-between items-baseline mb-stack-sm">
+        <h2 class="font-label-md text-label-md text-primary uppercase tracking-widest font-bold">// PLAYBACK</h2>
+        <p class="font-label-sm text-label-sm uppercase text-on-surface-variant">FRAME DELAY</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="font-label-sm text-[11px] uppercase tracking-widest w-20 shrink-0 font-bold">SPEED</span>
+        <input id="speedSlider" type="range" min="50" max="500" step="10" value="100" class="flex-1 accent-primary">
+        <span id="speedValue" class="font-label-sm text-[11px] uppercase tracking-widest w-16 shrink-0 text-right tabular-nums font-bold">100MS</span>
+      </div>
+      <p class="font-label-sm text-[10px] uppercase tracking-widest text-on-surface-variant mt-1">FASTER ← →  SLOWER</p>
+    </section>
+
     <!-- Lens grid section -->
     <section class="mb-stack-md">
       <div class="flex justify-between items-baseline mb-stack-sm">
         <h2 class="font-label-md text-label-md text-primary uppercase tracking-widest font-bold">// LENSES</h2>
-        <p id="lensCount" class="font-label-sm text-label-sm uppercase text-on-surface-variant">0 CONNECTED</p>
+        <p id="lensCount" class="font-label-sm text-label-sm uppercase text-on-surface-variant">0 CONNECTED // CAP 10</p>
       </div>
       <div id="lensGrid" class="grid grid-cols-2 gap-stack-sm"></div>
     </section>
@@ -141,6 +155,19 @@
           <span class="font-stamp-accent text-stamp-accent bg-primary text-on-primary px-2 py-0.5 -rotate-12 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">DONE</span>
         </div>
       </div>
+      <!-- Per-frame sequence editor -->
+      <section id="sequenceEditor" class="mt-stack-md">
+        <div class="flex justify-between items-baseline mb-stack-sm">
+          <h3 class="font-label-md text-label-md text-primary uppercase tracking-widest font-bold">// FRAME SEQUENCE</h3>
+          <button id="resetSequence" class="font-label-sm text-[11px] uppercase tracking-widest underline opacity-60 hover:opacity-100">RESET TO PING-PONG</button>
+        </div>
+        <div id="sequenceStrip" class="flex gap-1 overflow-x-auto pb-2 -mx-1 px-1"></div>
+        <button id="rebuildGif"
+          class="mt-stack-sm w-full bg-primary text-on-primary py-3 px-4 border-2 border-primary shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all font-label-md text-label-md uppercase tracking-widest font-bold">
+          ↻ REBUILD WIGGLEGRAM
+        </button>
+      </section>
+
       <div class="flex gap-stack-sm mt-stack-md">
         <a id="downloadLink" download="wigglegram.gif"
           class="flex-1 text-center bg-primary text-on-primary py-3 px-4 border-2 border-primary shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all font-label-md text-label-md uppercase tracking-widest font-bold">
