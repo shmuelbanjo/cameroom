@@ -37,9 +37,12 @@ const curveEditor   = $('curveEditor');
 const curvePath     = $('curvePath');
 const curveHandles  = $('curveHandles');
 
-// Playback panel DOM
-const speedSlider   = $('speedSlider');
-const speedValue    = $('speedValue');
+// Playback panel DOM (two sliders — pre-snap above the SNAP button, and
+// post-capture inside the preview section — kept in sync via setSpeed).
+const speedSlider        = $('speedSlider');
+const speedValue         = $('speedValue');
+const speedSliderPreview = $('speedSliderPreview');
+const speedValuePreview  = $('speedValuePreview');
 
 // Sequence editor DOM
 const sequenceEditor = $('sequenceEditor');
@@ -493,13 +496,19 @@ newSnapBtn.addEventListener('click', () => {
 
 // ---------- Playback controls ----------
 
-if (speedSlider) {
-  speedSlider.addEventListener('input', (e) => {
-    playbackSpeed = parseInt(e.target.value, 10);
-    speedValue.textContent = `${playbackSpeed}MS`;
-  });
-  speedValue.textContent = `${playbackSpeed}MS`;
+function setSpeed(ms) {
+  playbackSpeed = ms;
+  if (speedSlider)        speedSlider.value = ms;
+  if (speedSliderPreview) speedSliderPreview.value = ms;
+  if (speedValue)         speedValue.textContent = `${ms}MS`;
+  if (speedValuePreview)  speedValuePreview.textContent = `${ms}MS`;
 }
+
+[speedSlider, speedSliderPreview].forEach((el) => {
+  if (!el) return;
+  el.addEventListener('input', (e) => setSpeed(parseInt(e.target.value, 10)));
+});
+setSpeed(playbackSpeed);
 
 // ---------- Per-frame sequence editor ----------
 
