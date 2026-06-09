@@ -90,6 +90,14 @@ io.on('connection', (socket) => {
     socket.to(code).emit('WIGGLEGRAM_DROP', { gif: gifBuf });
   });
 
+  // Host streams filter settings to every lens — live look-tweak feedback loop.
+  socket.on('FILTER_UPDATE', (filter) => {
+    const code = socket.data.roomCode;
+    const room = rooms.get(code);
+    if (!room || room.hostId !== socket.id) return;
+    socket.to(code).emit('FILTER_APPLY', filter);
+  });
+
   socket.on('SUBMIT_PHOTO', (photoBuf) => {
     const code = socket.data.roomCode;
     const room = rooms.get(code);

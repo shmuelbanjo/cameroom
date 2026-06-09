@@ -29,6 +29,48 @@ const wigglePreview  = $('wigglePreview');
 const wiggleMeta     = $('wiggleMeta');
 const wiggleDownload = $('wiggleDownload');
 
+const vignetteOverlay = $('vignetteOverlay');
+const grainOverlay    = $('grainOverlay');
+
+// ----- Filter state (host pushes via FILTER_APPLY) -----
+const DEFAULT_FILTER = {
+  brightness: 1, contrast: 1, saturation: 1, hueRotate: 0, blur: 0,
+  grain: 0, vignette: 0, vignetteFeather: 0.5,
+  curve: null   // null = identity; otherwise 256-entry array (0..255)
+};
+let currentFilter = { ...DEFAULT_FILTER };
+
+const SVG_GRAIN = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240">' +
+  '<filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/></filter>' +
+  '<rect width="100%" height="100%" filter="url(#n)" opacity="0.55"/></svg>'
+);
+if (grainOverlay) {
+  grainOverlay.style.backgroundImage = `url("${SVG_GRAIN}")`;
+  grainOverlay.style.backgroundRepeat = 'repeat';
+}
+
+function buildCssFilter(f) {
+  return [
+    `brightness(${f.brightness})`,
+    `contrast(${f.contrast})`,
+    `saturate(${f.saturation})`,
+    `hue-rotate(${f.hueRotate}deg)`,
+    `blur(${f.blur}px)`
+  ].join(' ');
+}
+
+function applyLiveFilter() {
+  if (video) video.style.filter = buildCssFilter(currentFilter);
+  if (vignetteOverlay) {
+    const inner = Math.max(0, 1 - currentFilter.vignetteFeather);
+    vignetteOverlay.style.background =
+      `radial-gradient(ellipse at center, rgba(0,0,0,0) ${inner * 100}%, rgba(0,0,0,${currentFilter.vignette}) 100%)`;
+    vignetteOverlay.style.opacity = currentFilter.vignette > 0 ? '1' : '0';
+  }
+  if (grainOverlay) grainOverlay.style.opacity = String(currentFilter.grain);
+}
+
 const USERNAME_KEY = 'cameroom_username';
 
 let socket = null;
@@ -68,18 +110,69 @@ function enterSession(name) {
 }
 
 function attachSocketListeners() {
+  socket.on('FILTER_APPLY', (f) => {
+    currentFilter = { ...DEFAULT_FILTER, ...f };
+    applyLiveFilter();
+  });
+
   socket.on('SNAP_NOW', () => {
-    // === HOT PATH: synchronous pixel grab. ===
+    // === HOT PATH: synchronous pixel grab with active filter baked in. ===
     const w = video.videoWidth;
     const h = video.videoHeight;
     if (!w || !h) return;
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext('2d');
-    // Locked Polaroid lookup — flatten the live frame straight into B&W before encode.
-    ctx.filter = 'grayscale(100%) contrast(125%) brightness(100%)';
+
+    // Layer 1 — CSS-equivalent filter ops on the raw frame
+    ctx.filter = buildCssFilter(currentFilter);
     ctx.drawImage(video, 0, 0, w, h);
     ctx.filter = 'none';
+
+    // Layer 2 — vignette (radial darkening)
+    if (currentFilter.vignette > 0) {
+      const cx = w / 2, cy = h / 2;
+      const rOuter = Math.sqrt(cx * cx + cy * cy);
+      const rInner = rOuter * Math.max(0, 1 - currentFilter.vignetteFeather);
+      const g = ctx.createRadialGradient(cx, cy, rInner, cx, cy, rOuter);
+      g.addColorStop(0, 'rgba(0,0,0,0)');
+      g.addColorStop(1, `rgba(0,0,0,${currentFilter.vignette})`);
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    // Layer 3 — grain (procedural noise mixed via 'overlay')
+    if (currentFilter.grain > 0) {
+      const off = document.createElement('canvas');
+      off.width = w; off.height = h;
+      const oCtx = off.getContext('2d');
+      const id = oCtx.createImageData(w, h);
+      const px = id.data;
+      for (let i = 0; i < px.length; i += 4) {
+        const n = 128 + (((Math.random() - 0.5) * 255) | 0);
+        px[i] = px[i+1] = px[i+2] = n;
+        px[i+3] = 255;
+      }
+      oCtx.putImageData(id, 0, 0);
+      ctx.globalCompositeOperation = 'overlay';
+      ctx.globalAlpha = currentFilter.grain;
+      ctx.drawImage(off, 0, 0);
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
+    // Layer 4 — per-pixel tone-curve LUT pass (only if host shipped a curve)
+    if (currentFilter.curve && currentFilter.curve.length === 256) {
+      const lut = currentFilter.curve;
+      const id = ctx.getImageData(0, 0, w, h);
+      const px = id.data;
+      for (let i = 0; i < px.length; i += 4) {
+        px[i]   = lut[px[i]];
+        px[i+1] = lut[px[i+1]];
+        px[i+2] = lut[px[i+2]];
+      }
+      ctx.putImageData(id, 0, 0);
+    }
     // === END HOT PATH ===
 
     flash.classList.add('on');

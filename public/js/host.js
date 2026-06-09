@@ -24,10 +24,24 @@ const gifMeta       = $('gifMeta');
 const downloadLink  = $('downloadLink');
 const newSnapBtn    = $('newSnapBtn');
 
+// Filter panel DOM
+const filterPanel   = $('filterPanel');
+const presetRow     = $('presetRow');
+const sliderGrid    = $('sliderGrid');
+const filterReset   = $('filterReset');
+const openAdvanced  = $('openAdvanced');
+const advancedModal = $('advancedModal');
+const closeAdvanced = $('closeAdvanced');
+const resetCurve    = $('resetCurve');
+const curveEditor   = $('curveEditor');
+const curvePath     = $('curvePath');
+const curveHandles  = $('curveHandles');
+
 const SNAP_TIMEOUT_MS = 5000;
 const MIN_CAMERAS = 2;
 const MIN_VISIBLE_SLOTS = 4;
 const USERNAME_KEY = 'cameroom_username';
+const FILTER_EMIT_THROTTLE_MS = 100;
 
 let socket = null;
 let username = null;
@@ -36,6 +50,42 @@ let displayOrder = [];           // [position, position, ...] — host's reorder
 let expectedAtSnap = 0;
 let received = new Map();        // position -> ArrayBuffer (JPEG)
 let snapTimeout = null;
+
+// ===== Filter state =====
+const DEFAULT_FILTER = {
+  preset: 'RAW',
+  brightness: 1, contrast: 1, saturation: 1, hueRotate: 0, blur: 0,
+  grain: 0, vignette: 0, vignetteFeather: 0.5,
+  curve: null
+};
+let filterState = { ...DEFAULT_FILTER };
+
+const PRESETS = {
+  RAW:    { brightness: 1,    contrast: 1,    saturation: 1,    hueRotate: 0,   blur: 0,   grain: 0,    vignette: 0,   vignetteFeather: 0.5, curve: null },
+  MONO:   { brightness: 1,    contrast: 1.2,  saturation: 0,    hueRotate: 0,   blur: 0,   grain: 0.05, vignette: 0,   vignetteFeather: 0.5, curve: null },
+  NOIR:   { brightness: 0.92, contrast: 1.45, saturation: 0,    hueRotate: 0,   blur: 0,   grain: 0.15, vignette: 0.55, vignetteFeather: 0.6, curve: null },
+  VIVID:  { brightness: 1,    contrast: 1.2,  saturation: 1.5,  hueRotate: 0,   blur: 0,   grain: 0,    vignette: 0,   vignetteFeather: 0.5, curve: null },
+  WARM:   { brightness: 1.02, contrast: 1.05, saturation: 1.1,  hueRotate: -14, blur: 0,   grain: 0,    vignette: 0,   vignetteFeather: 0.5, curve: null },
+  COLD:   { brightness: 1,    contrast: 1.1,  saturation: 0.88, hueRotate: 14,  blur: 0,   grain: 0,    vignette: 0,   vignetteFeather: 0.5, curve: null },
+  FADED:  { brightness: 1.08, contrast: 0.78, saturation: 0.6,  hueRotate: 0,   blur: 0,   grain: 0.08, vignette: 0,   vignetteFeather: 0.5, curve: null },
+  DREAM:  { brightness: 1.05, contrast: 1,    saturation: 1.2,  hueRotate: 0,   blur: 1,   grain: 0,    vignette: 0.3, vignetteFeather: 0.7, curve: null }
+};
+
+const SLIDER_DEFS = [
+  { key: 'brightness',       label: 'BRIGHT',     min: 0,    max: 2,   step: 0.05, format: (v) => v.toFixed(2) },
+  { key: 'contrast',         label: 'CONTRAST',   min: 0,    max: 2,   step: 0.05, format: (v) => v.toFixed(2) },
+  { key: 'saturation',       label: 'SATURATE',   min: 0,    max: 2,   step: 0.05, format: (v) => v.toFixed(2) },
+  { key: 'hueRotate',        label: 'HUE',        min: -180, max: 180, step: 5,    format: (v) => `${v|0}°` },
+  { key: 'blur',             label: 'BLUR',       min: 0,    max: 5,   step: 0.1,  format: (v) => `${v.toFixed(1)}px` },
+  { key: 'grain',            label: 'GRAIN',      min: 0,    max: 1,   step: 0.05, format: (v) => `${Math.round(v * 100)}%` },
+  { key: 'vignette',         label: 'VIGNETTE',   min: 0,    max: 1,   step: 0.05, format: (v) => `${Math.round(v * 100)}%` },
+  { key: 'vignetteFeather',  label: 'V.FEATHER',  min: 0,    max: 1,   step: 0.05, format: (v) => `${Math.round(v * 100)}%` }
+];
+
+// Curve control points (image domain 0-255): [Shadows, Darks, Lights, Highlights]
+// X positions fixed; Y values draggable.
+const CURVE_X = [32, 96, 160, 224];
+let curveY = [32, 96, 160, 224];   // identity
 
 // ---------- Login flow ----------
 
@@ -85,6 +135,7 @@ function enterSession(name) {
 
 function attachSocketListeners() {
   socket.on('LOBBY_UPDATE', ({ joiners }) => {
+    const prevCount = lobby.length;
     lobby = joiners;
     // Preserve existing manual order; append newcomers; drop disconnected.
     const present = new Set(joiners.map((j) => j.position));
@@ -93,6 +144,11 @@ function attachSocketListeners() {
 
     lensCount.textContent = `${joiners.length} CONNECTED`;
     renderLensGrid();
+
+    // If a new joiner came in, re-push the current filter so they sync.
+    if (joiners.length > prevCount && filterState.preset !== 'RAW') {
+      socket.emit('FILTER_UPDATE', filterState);
+    }
 
     const ready = joiners.length >= MIN_CAMERAS;
     snapBtn.disabled = !ready;
@@ -412,7 +468,224 @@ function setTicker(msg) {
   statusTicker.appendChild(caret);
 }
 
-// ---------- Auto-login if username already saved ----------
+// ---------- Filter panel ----------
+
+let filterEmitTimer = null;
+let filterLastEmit = 0;
+
+function emitFilter() {
+  if (!socket) return;
+  const now = performance.now();
+  const sincePrev = now - filterLastEmit;
+  if (sincePrev >= FILTER_EMIT_THROTTLE_MS) {
+    socket.emit('FILTER_UPDATE', filterState);
+    filterLastEmit = now;
+    if (filterEmitTimer) { clearTimeout(filterEmitTimer); filterEmitTimer = null; }
+  } else if (!filterEmitTimer) {
+    filterEmitTimer = setTimeout(() => {
+      if (socket) socket.emit('FILTER_UPDATE', filterState);
+      filterLastEmit = performance.now();
+      filterEmitTimer = null;
+    }, FILTER_EMIT_THROTTLE_MS - sincePrev);
+  }
+}
+
+function applyPreset(name) {
+  const p = PRESETS[name];
+  if (!p) return;
+  filterState = { ...DEFAULT_FILTER, preset: name, ...p, curve: filterState.curve };
+  reflectFilterUi();
+  highlightActivePreset();
+  emitFilter();
+  setTicker(`LOOK // ${name}`);
+}
+
+function highlightActivePreset() {
+  [...presetRow.querySelectorAll('button')].forEach((b) => {
+    const active = b.dataset.preset === filterState.preset;
+    b.className = active
+      ? 'shrink-0 bg-primary text-on-primary border-2 border-primary px-3 py-2 font-label-sm text-[11px] uppercase tracking-widest font-bold shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
+      : 'shrink-0 bg-surface text-primary border-2 border-primary px-3 py-2 font-label-sm text-[11px] uppercase tracking-widest font-bold active:translate-x-px active:translate-y-px';
+  });
+}
+
+function reflectFilterUi() {
+  SLIDER_DEFS.forEach((def) => {
+    const slider = sliderGrid.querySelector(`input[data-key="${def.key}"]`);
+    const valueEl = sliderGrid.querySelector(`span[data-key="${def.key}"]`);
+    if (!slider || !valueEl) return;
+    slider.value = filterState[def.key];
+    valueEl.textContent = def.format(filterState[def.key]);
+  });
+  redrawCurve();
+}
+
+function buildFilterUi() {
+  // Presets
+  presetRow.replaceChildren();
+  Object.keys(PRESETS).forEach((name) => {
+    const b = document.createElement('button');
+    b.textContent = name;
+    b.dataset.preset = name;
+    b.addEventListener('click', () => applyPreset(name));
+    presetRow.appendChild(b);
+  });
+  highlightActivePreset();
+
+  // Sliders
+  sliderGrid.replaceChildren();
+  SLIDER_DEFS.forEach((def) => {
+    const row = document.createElement('div');
+    row.className = 'flex items-center gap-2';
+
+    const label = document.createElement('label');
+    label.className = 'font-label-sm text-[11px] uppercase tracking-widest w-20 shrink-0 font-bold';
+    label.textContent = def.label;
+    row.appendChild(label);
+
+    const input = document.createElement('input');
+    input.type = 'range';
+    input.min = def.min;
+    input.max = def.max;
+    input.step = def.step;
+    input.value = filterState[def.key];
+    input.dataset.key = def.key;
+    input.className = 'flex-1 accent-primary';
+    input.addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value);
+      filterState[def.key] = v;
+      filterState.preset = 'CUSTOM';
+      valueEl.textContent = def.format(v);
+      highlightActivePreset();
+      emitFilter();
+    });
+    row.appendChild(input);
+
+    const valueEl = document.createElement('span');
+    valueEl.dataset.key = def.key;
+    valueEl.className = 'font-label-sm text-[11px] uppercase tracking-widest w-14 shrink-0 text-right tabular-nums';
+    valueEl.textContent = def.format(filterState[def.key]);
+    row.appendChild(valueEl);
+
+    sliderGrid.appendChild(row);
+  });
+
+  // Reset
+  filterReset.addEventListener('click', () => {
+    filterState = { ...DEFAULT_FILTER };
+    curveY = CURVE_X.slice();
+    reflectFilterUi();
+    highlightActivePreset();
+    emitFilter();
+    setTicker('LOOK // RESET');
+  });
+
+  // Modal open/close
+  openAdvanced.addEventListener('click', () => {
+    advancedModal.classList.remove('hidden');
+    redrawCurve();
+  });
+  closeAdvanced.addEventListener('click', () => advancedModal.classList.add('hidden'));
+  advancedModal.addEventListener('click', (e) => {
+    if (e.target === advancedModal) advancedModal.classList.add('hidden');
+  });
+
+  resetCurve.addEventListener('click', () => {
+    curveY = CURVE_X.slice();
+    filterState.curve = null;
+    redrawCurve();
+    emitFilter();
+    setTicker('CURVE // LINEAR');
+  });
+
+  setupCurveEditor();
+}
+
+// ---------- Tone curve ----------
+
+function buildCurveLut(points) {
+  // points sorted by x: [[x0,y0], [x1,y1], ...]
+  const lut = new Array(256);
+  for (let x = 0; x < 256; x++) {
+    let i = 0;
+    while (i < points.length - 1 && points[i + 1][0] < x) i++;
+    const [x0, y0] = points[i];
+    const [x1, y1] = points[i + 1] || points[i];
+    const t = x1 === x0 ? 0 : (x - x0) / (x1 - x0);
+    lut[x] = Math.max(0, Math.min(255, Math.round(y0 + (y1 - y0) * t)));
+  }
+  return lut;
+}
+
+function allCurvePoints() {
+  const pts = [[0, 0]];
+  for (let i = 0; i < CURVE_X.length; i++) pts.push([CURVE_X[i], curveY[i]]);
+  pts.push([255, 255]);
+  return pts;
+}
+
+function isIdentityCurve() {
+  return curveY.every((y, i) => y === CURVE_X[i]);
+}
+
+function redrawCurve() {
+  if (!curvePath) return;
+  const pts = allCurvePoints();
+  const d = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x} ${256 - y}`).join(' ');
+  curvePath.setAttribute('d', d);
+
+  curveHandles.replaceChildren();
+  CURVE_X.forEach((x, i) => {
+    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    c.setAttribute('cx', x);
+    c.setAttribute('cy', 256 - curveY[i]);
+    c.setAttribute('r', 10);
+    c.setAttribute('fill', '#000');
+    c.setAttribute('stroke', '#fff');
+    c.setAttribute('stroke-width', 2);
+    c.style.cursor = 'ns-resize';
+    c.style.touchAction = 'none';
+    c.dataset.idx = i;
+    curveHandles.appendChild(c);
+  });
+}
+
+function setupCurveEditor() {
+  if (!curveEditor) return;
+  let draggingIdx = -1;
+
+  function svgPointFromEvent(e) {
+    const pt = curveEditor.createSVGPoint();
+    pt.x = e.clientX; pt.y = e.clientY;
+    return pt.matrixTransform(curveEditor.getScreenCTM().inverse());
+  }
+
+  curveEditor.addEventListener('pointerdown', (e) => {
+    const t = e.target;
+    if (t.tagName !== 'circle') return;
+    draggingIdx = parseInt(t.dataset.idx, 10);
+    t.setPointerCapture(e.pointerId);
+  });
+
+  curveEditor.addEventListener('pointermove', (e) => {
+    if (draggingIdx < 0) return;
+    const pt = svgPointFromEvent(e);
+    const newY = Math.max(0, Math.min(255, Math.round(256 - pt.y)));
+    curveY[draggingIdx] = newY;
+    filterState.curve = isIdentityCurve() ? null : buildCurveLut(allCurvePoints());
+    redrawCurve();
+    emitFilter();
+  });
+
+  const endDrag = () => { draggingIdx = -1; };
+  curveEditor.addEventListener('pointerup', endDrag);
+  curveEditor.addEventListener('pointercancel', endDrag);
+  curveEditor.addEventListener('pointerleave', endDrag);
+}
+
+// ---------- Bootstrap ----------
+
+buildFilterUi();
 
 const saved = localStorage.getItem(USERNAME_KEY);
 if (saved) {

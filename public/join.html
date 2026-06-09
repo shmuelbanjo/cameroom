@@ -114,10 +114,14 @@
     <!-- Polaroid viewfinder -->
     <div class="flex-grow relative border-[10px] border-surface-container-lowest shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col overflow-hidden">
       <div class="relative flex-grow bg-black overflow-hidden">
-        <video id="video" autoplay playsinline muted class="w-full h-full object-cover viewfinder-mono"></video>
+        <video id="video" autoplay playsinline muted class="w-full h-full object-cover"></video>
         <canvas id="canvas" hidden></canvas>
 
-        <!-- Overlays -->
+        <!-- Filter overlays (driven by host's FILTER_APPLY events) -->
+        <div id="vignetteOverlay" class="absolute inset-0 pointer-events-none mix-blend-multiply" style="opacity:0"></div>
+        <div id="grainOverlay" class="absolute inset-0 pointer-events-none mix-blend-overlay" style="opacity:0"></div>
+
+        <!-- Viewfinder chrome -->
         <div class="absolute inset-0 viewfinder-crosshair opacity-25 pointer-events-none"></div>
         <div class="scanline"></div>
 

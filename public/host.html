@@ -75,6 +75,23 @@
       </div>
     </div>
 
+    <!-- Filter panel -->
+    <section id="filterPanel" class="mb-stack-md bg-surface-container-lowest border-2 border-primary p-3 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+      <div class="flex justify-between items-baseline mb-stack-sm">
+        <h2 class="font-label-md text-label-md text-primary uppercase tracking-widest font-bold">// LOOK</h2>
+        <button id="filterReset" class="font-label-sm text-[11px] uppercase tracking-widest underline opacity-60 hover:opacity-100">RESET</button>
+      </div>
+
+      <div id="presetRow" class="flex gap-1 overflow-x-auto -mx-1 px-1 pb-2"></div>
+
+      <details class="border-t-2 border-primary pt-2 mt-2">
+        <summary class="font-label-sm text-label-sm uppercase tracking-widest cursor-pointer select-none font-bold">FINE-TUNE ▾</summary>
+        <div id="sliderGrid" class="mt-3 space-y-2"></div>
+      </details>
+
+      <button id="openAdvanced" class="mt-3 w-full font-label-sm text-label-sm uppercase tracking-widest underline opacity-80 hover:opacity-100">ADVANCED SETTINGS →</button>
+    </section>
+
     <!-- Lens grid section -->
     <section class="mb-stack-md">
       <div class="flex justify-between items-baseline mb-stack-sm">
@@ -146,6 +163,45 @@
       <span class="font-label-sm text-[10px] uppercase mt-1">SETTINGS</span>
     </button>
   </nav>
+
+  <!-- =========================
+       ADVANCED MODAL (tone curve)
+       ========================= -->
+  <div id="advancedModal" class="hidden fixed inset-0 z-[70] flex items-center justify-center p-4 bg-primary/50">
+    <div class="bg-surface border-2 border-primary p-4 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] max-w-md w-full">
+      <header class="flex justify-between items-center border-b-2 border-primary pb-2 mb-3">
+        <div>
+          <p class="font-label-sm text-label-sm uppercase opacity-60">ADVANCED</p>
+          <h2 class="font-headline-md text-headline-md uppercase tracking-tighter">TONE CURVE</h2>
+        </div>
+        <button id="closeAdvanced" class="material-symbols-outlined text-3xl">close</button>
+      </header>
+
+      <p class="font-label-sm text-label-sm text-on-surface-variant uppercase mb-2 tracking-widest">DRAG NODES // SHAPE LUMINANCE</p>
+
+      <div class="bg-surface-container-lowest border-2 border-primary p-2 aspect-square">
+        <svg id="curveEditor" viewBox="0 0 256 256" class="w-full h-full touch-none" preserveAspectRatio="xMidYMid meet">
+          <g stroke="#cfc4c5" stroke-width="0.5">
+            <line x1="0" y1="64" x2="256" y2="64"/>
+            <line x1="0" y1="128" x2="256" y2="128"/>
+            <line x1="0" y1="192" x2="256" y2="192"/>
+            <line x1="64" y1="0" x2="64" y2="256"/>
+            <line x1="128" y1="0" x2="128" y2="256"/>
+            <line x1="192" y1="0" x2="192" y2="256"/>
+          </g>
+          <line x1="0" y1="256" x2="256" y2="0" stroke="#cfc4c5" stroke-width="1" stroke-dasharray="2 4"/>
+          <path id="curvePath" stroke="#000" stroke-width="2" fill="none"/>
+          <g id="curveHandles"></g>
+        </svg>
+      </div>
+
+      <div class="flex justify-between text-[10px] uppercase font-bold mt-1 tracking-widest opacity-60">
+        <span>SHADOWS</span><span>DARKS</span><span>LIGHTS</span><span>HIGHLIGHTS</span>
+      </div>
+
+      <button id="resetCurve" class="mt-3 w-full bg-primary text-on-primary border-2 border-primary py-3 font-label-md text-label-md uppercase tracking-widest font-bold shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all">↺ RESET CURVE TO LINEAR</button>
+    </div>
+  </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
