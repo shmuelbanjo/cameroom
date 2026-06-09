@@ -1,0 +1,26 @@
+{
+  "name": "K4MERA — Crowdsourced Wigglegrams",
+  "short_name": "K4MERA",
+  "description": "Crowdsourced 3D wigglegram camera. Friends become lenses.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f9f9f9",
+  "theme_color": "#000000",
+  "categories": ["photo", "social", "entertainment"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
